@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 from pathlib import Path  # noqa: TC003
 from typing import Annotated
@@ -8,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from bb_recon.utils.path_utils import DB_INIT_SCRIPT_PATH, DEFAULT_DATA_DIR
+
+logger = logging.getLogger(__name__)
 
 DOMAIN_REGEX = r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$"
 
@@ -18,7 +21,7 @@ class CliArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     target_domain: DomainName
-    include_subdomains: bool = False
+    enumerate_subdomains: bool = False
     app_data_dir: Path = DEFAULT_DATA_DIR
 
     @field_validator("app_data_dir", mode="before")
@@ -44,7 +47,7 @@ class CliArgs(BaseModel):
         args = parse_args()
         return cls(
             target_domain=args.target_domain,
-            include_subdomains=args.include_subdomains,
+            enumerate_subdomains=args.enumerate_subdomains,
             app_data_dir=args.app_data_dir,
         )
 
@@ -108,6 +111,8 @@ def _ensure_app_data_dir_exists(data_dir: Path) -> None:
     :param data_dir: Path: The application data directory path.
     :return: None
     """
+    if not data_dir.exists():
+        logger.debug(f"Creating application data directory at {data_dir}")
     data_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -117,5 +122,7 @@ def _ensure_database_initialized(db_path: Path) -> None:
     :param db_path: Path: The path to the SQLite database file.
     :return: None
     """
+    if not db_path.exists():
+        logger.debug(f"Creating and initializing database at {db_path}")
     with sqlite3.connect(db_path) as conn:
         conn.executescript(DB_INIT_SCRIPT_PATH.read_text())

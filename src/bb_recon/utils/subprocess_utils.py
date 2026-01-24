@@ -6,10 +6,13 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def log_and_run(command: list[str], dry_run: bool = False) -> subprocess.CompletedProcess[str]:
+def log_and_run(
+    command: list[str], stdin: str | None = None, dry_run: bool = False
+) -> subprocess.CompletedProcess[str]:
     """
     Log and run a subprocess command.
     :param command: The command to run as a list of strings.
+    :param stdin: Optional standard input to pass to the command.
     :param dry_run: If True, only log the command without executing it.
     :return: subprocess.CompletedProcess: The result of the command execution.
     """
@@ -23,7 +26,7 @@ def log_and_run(command: list[str], dry_run: bool = False) -> subprocess.Complet
         return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
 
     logger.info(f"Running command: {command_string}")
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=True, input=stdin)
     if result.returncode != 0:
         logger.warning(f"Commad failed (exit {result.returncode}): {result.stderr.strip()}")
     else:
