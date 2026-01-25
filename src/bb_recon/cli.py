@@ -10,6 +10,7 @@ from bb_recon.utils.db_utils import (
     store_subfinder_results,
 )
 from bb_recon.utils.log_utils import setup_logging
+from bb_recon.utils.path_utils import check_if_required_commands_exist
 from bb_recon.utils.subprocess_utils import log_and_run
 
 
@@ -19,6 +20,9 @@ def joy():
     config = ReconConfig.load()
     config.initialize_database()
     target_domain = config.cli.target_domain
+
+    if not check_if_required_commands_exist():
+        return
 
     with get_connection(config.cli.db_path) as conn:
         insert_domain(conn, target_domain)
