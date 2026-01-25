@@ -10,9 +10,8 @@ CREATE INDEX IF NOT EXISTS idx_domain_name ON domains(name);
 CREATE TABLE IF NOT EXISTS subdomains (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     domain_id INT NOT NULL,
-    name TEXT,
+    name TEXT NOT NULL,
     sources TEXT,
-    alive BOOLEAN DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE CASCADE,
@@ -70,3 +69,19 @@ CREATE TRIGGER IF NOT EXISTS subdomain_ips_set_last_updated
     BEGIN
         UPDATE subdomain_ips SET last_updated = CURRENT_TIMESTAMP WHERE subdomain_id = OLD.subdomain_id AND ip_id = OLD.ip_id;
     END;
+
+CREATE TABLE IF NOT EXISTS endpoints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subdomain_id INT NOT NULL,
+    url TEXT NOT NULL,
+    title TEXT,
+    status_code INT,
+    active BOOLEAN GENERATED ALWAYS AS (status_code IS NOT NULL AND status_code != 404) STORED,
+    content_length INT,
+    content_type TEXT,
+    discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (subdomain_id) REFERENCES subdomains(id) ON DELETE CASCADE,
+    UNIQUE(subdomain_id, url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_endpoints_url_code ON endpoints(subdomain_id, url, status_code);

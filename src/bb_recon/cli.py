@@ -1,8 +1,14 @@
 from dotenv import load_dotenv
 
 from bb_recon.config.recon_config import ReconConfig
-from bb_recon.models import parse_dnsx_output, parse_subfinder_output
-from bb_recon.utils.db_utils import get_connection, insert_domain, store_dnsx_results, store_subfinder_results
+from bb_recon.models import parse_dnsx_output, parse_httpx_output, parse_subfinder_output
+from bb_recon.utils.db_utils import (
+    get_connection,
+    insert_domain,
+    store_dnsx_results,
+    store_httpx_results,
+    store_subfinder_results,
+)
 from bb_recon.utils.log_utils import setup_logging
 from bb_recon.utils.subprocess_utils import log_and_run
 
@@ -17,9 +23,11 @@ def joy():
     with get_connection(config.cli.db_path) as conn:
         insert_domain(conn, target_domain)
 
+        domains_to_check_liveness = [target_domain]
         if config.cli.enumerate_subdomains:
             subfinder_command = [
                 "subfinder",
+                "-silent",
                 "-domain",
                 target_domain,
                 "-json",
@@ -36,6 +44,7 @@ def joy():
 
             dnsx_command = [
                 "dnsx",
+                "-silent",
                 "-l",
                 "-",  # Read subdomains from stdin
                 "-a",  # Perform A record look
@@ -48,6 +57,28 @@ def joy():
             dnsx_stdout = log_and_run(dnsx_command, stdin=dnsx_stdin).stdout
             dnsx_results = parse_dnsx_output(dnsx_stdout)
             store_dnsx_results(conn, target_domain, dnsx_results)
+
+            domains_to_check_liveness.extend([r.host for r in dnsx_results])
+
+        httpx_command = [
+            "httpx",
+            "-silent",
+            "-fc",
+            "404",  # Filter out 404 responses
+            "-json",
+            "-omit-body",
+            "-r",
+            "8.8.8.8",  # Use Google's public DNS resolver
+            "-auto-referer",
+            "-follow-redirects",
+            "-e",
+            "cdn",  # Exclude hosts with "cdn" in their name
+        ]
+
+        httpx_stdin = "\n".join(domains_to_check_liveness)
+        httpx_stdout = log_and_run(httpx_command, stdin=httpx_stdin).stdout
+        httpx_results = parse_httpx_output(httpx_stdout)
+        store_httpx_results(conn, target_domain, httpx_results)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from pathlib import Path
 
-from ..models import DnsStatusCode, DnsxResult, SubfinderResult
+from ..models import DnsStatusCode, DnsxResult, HttpxResult, SubfinderResult
 
 logger = logging.getLogger(__name__)
 
@@ -81,12 +81,11 @@ def store_subfinder_results(conn: sqlite3.Connection, domain: str, results: list
     :param results: A list of SubfinderResult objects to store.
     :return: None
     """
-
     cursor = conn.cursor()
     domain_id = get_domain_id(conn, domain)
     if domain_id is None:
         raise ValueError(f"Domain '{domain}' not found in the database.")
-    logger.debug(f"Storing {len(results)} subfinder results for domain ID {domain_id}")
+    logger.debug(f"Storing {len(results)} subfinder results for domain {domain} with ID {domain_id}")
     cursor.executemany(
         "INSERT INTO subdomains (domain_id, name, sources) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET updated_at = CURRENT_TIMESTAMP",
         [(domain_id, r.host, json.dumps(r.sources)) for r in results],
@@ -99,16 +98,17 @@ def store_dnsx_results(conn: sqlite3.Connection, domain: str, results: list[Dnsx
     """
     Store dnsx results into the database.
     :param conn: The SQLite database connection.
+    :param domain: The target domain for which the results were obtained.
     :param results: A list of dnsx result objects to store.
     :return: None
     """
     cursor = conn.cursor()
-    logger.debug(f"Storing {len(results)} dnsx results")
     domain_id = get_domain_id(conn, domain)
+    logger.debug(f"Storing {len(results)} dnsx results for domain {domain} with ID {domain_id}")
 
     for r in results:
         if r.status_code != DnsStatusCode.NOERROR:
-            logger.debug(f"Skipping DNS result for {r.host} due to non-NOERROR status: {r.status_code}")
+            logger.debug(f"Skipping DNS result for {r.host} due to DNS status code: {r.status_code}")
             continue
 
         # insert IPs first (shared path)
@@ -141,14 +141,7 @@ def store_dnsx_results(conn: sqlite3.Connection, domain: str, results: list[Dnsx
                 (domain_id, r.host),
             )
 
-            cursor.execute(
-                """
-                SELECT id FROM subdomains
-                WHERE domain_id = ? AND name = ?
-                """,
-                (domain_id, r.host),
-            )
-            subdomain_id = cursor.fetchone()[0]
+            subdomain_id = get_subdomain_id(conn, r.host)
 
             cursor.executemany(
                 """
@@ -165,3 +158,33 @@ def store_dnsx_results(conn: sqlite3.Connection, domain: str, results: list[Dnsx
 
     conn.commit()
     logger.debug("dnsx results stored successfully.")
+
+
+def store_httpx_results(conn: sqlite3.Connection, domain: str, results: list[HttpxResult]) -> None:
+    """
+    Store httpx results into the database.
+    :param conn: The SQLite database connection.
+    :param domain: The target domain for which the results were obtained.
+    :param results: A list of httpx result objects to store.
+    :return: None
+    """
+    domain_id = get_domain_id(conn, domain)
+    logger.debug(f"Storing {len(results)} httpx results for domain {domain} with ID {domain_id}")
+
+    conn.executemany(
+        """
+        INSERT INTO endpoints (subdomain_id, url, title, status_code, content_length, content_type)
+        SELECT s.id, ?, ?, ?, ?, ?
+        FROM subdomains s
+        WHERE s.name = ?
+        ON CONFLICT DO NOTHING;
+        """,
+        [
+            (r.url, r.title, r.status_code, r.content_length, r.content_type, r.host)
+            for r in results
+            if r.host != domain
+        ],
+    )
+
+    conn.commit()
+    logger.debug("httpx results stored successfully.")
