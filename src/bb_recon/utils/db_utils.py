@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from pathlib import Path
 
-from ..models import DnsStatusCode, DnsxResult, HttpxResult, SubfinderResult
+from ..models import DnsStatusCode, DnsxResult, HttpxResult, KatanaResult, SubfinderResult
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ def store_subfinder_results(conn: sqlite3.Connection, domain: str, results: list
     domain_id = get_domain_id(conn, domain)
     if domain_id is None:
         raise ValueError(f"Domain '{domain}' not found in the database.")
-    logger.debug(f"Storing {len(results)} subfinder results for domain {domain} with ID {domain_id}")
+    logger.info(f"Storing {len(results)} subfinder results for domain {domain} with ID {domain_id}")
     cursor.executemany(
         "INSERT INTO subdomains (domain_id, name, sources) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET updated_at = CURRENT_TIMESTAMP",
         [(domain_id, r.host, json.dumps(r.sources)) for r in results],
@@ -104,7 +104,7 @@ def store_dnsx_results(conn: sqlite3.Connection, domain: str, results: list[Dnsx
     """
     cursor = conn.cursor()
     domain_id = get_domain_id(conn, domain)
-    logger.debug(f"Storing {len(results)} dnsx results for domain {domain} with ID {domain_id}")
+    logger.info(f"Storing {len(results)} dnsx results for domain {domain} with ID {domain_id}")
 
     for r in results:
         if r.status_code != DnsStatusCode.NOERROR:
@@ -169,7 +169,7 @@ def store_httpx_results(conn: sqlite3.Connection, domain: str, results: list[Htt
     :return: None
     """
     domain_id = get_domain_id(conn, domain)
-    logger.debug(f"Storing {len(results)} httpx results for domain {domain} with ID {domain_id}")
+    logger.info(f"Storing {len(results)} httpx results for domain {domain} with ID {domain_id}")
 
     conn.executemany(
         """
@@ -188,3 +188,26 @@ def store_httpx_results(conn: sqlite3.Connection, domain: str, results: list[Htt
 
     conn.commit()
     logger.debug("httpx results stored successfully.")
+
+
+def store_katana_results(conn: sqlite3.Connection, domain: str, results: list[KatanaResult]) -> None:
+    domain_id = get_domain_id(conn, domain)
+    logger.info(f"Storing {len(results)} katana results for domain {domain} with ID {domain_id}")
+
+    conn.executemany(
+        """
+        INSERT INTO endpoints (subdomain_id, url, method, status_code, content_length, content_type)
+        SELECT s.id, ?, ?, ?, ?, ?
+        FROM subdomains s
+        WHERE s.name = ?
+        ON CONFLICT DO NOTHING;
+        """,
+        [
+            (r.url, r.method, r.status_code, r.content_length, r.content_type, r.host)
+            for r in results
+            if r.host != domain and r.status_code is not None  # only store if status_code is present
+        ],
+    )
+
+    conn.commit()
+    logger.debug("katana results stored successfully.")

@@ -9,12 +9,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--enumerate-subdomains",
         action="store_true",
-        help="Whether to perform subdomain enumeration in the reconnaissance (subfinder and dnsx).",
+        help="Perform subdomain enumeration in the reconnaissance (subfinder and dnsx).",
     )
     parser.add_argument(
         "--app-data-dir",
         required=False,
         default=None,
         help=f"Path to the base application data directory. (default: {DEFAULT_DATA_DIR})",
+    )
+    parser.add_argument(
+        "--crawl-endpoints",
+        action="store_true",
+        help="Crawl discovered endpoints to find more endpoints.",
+    )
+    parser.add_argument(
+        "--log-level",
+        help="Set the logging level (CRITICAL, ERROR, WARNING, INFO, DEBUG). (default: INFO)",
     )
     return parser.parse_args()

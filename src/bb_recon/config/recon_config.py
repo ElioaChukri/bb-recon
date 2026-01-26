@@ -8,6 +8,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from bb_recon.utils.log_utils import LogLevel  # noqa: TC001
 from bb_recon.utils.path_utils import DB_INIT_SCRIPT_PATH, DEFAULT_DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,9 @@ class CliArgs(BaseModel):
 
     target_domain: DomainName
     enumerate_subdomains: bool = False
+    crawl_endpoints: bool = False
     app_data_dir: Path = DEFAULT_DATA_DIR
+    log_level: LogLevel = "INFO"
 
     @field_validator("app_data_dir", mode="before")
     @classmethod
@@ -45,11 +48,14 @@ class CliArgs(BaseModel):
         from ..args import parse_args
 
         args = parse_args()
-        return cls(
-            target_domain=args.target_domain,
-            enumerate_subdomains=args.enumerate_subdomains,
-            app_data_dir=args.app_data_dir,
-        )
+        kwargs = {
+            "target_domain": args.target_domain,
+            "enumerate_subdomains": args.enumerate_subdomains,
+            "crawl_endpoints": args.crawl_endpoints,
+            "app_data_dir": args.app_data_dir,
+            "log_level": args.log_level,
+        }
+        return cls(**{k: v for k, v in kwargs.items() if v is not None})
 
     @property
     def db_path(self) -> Path:

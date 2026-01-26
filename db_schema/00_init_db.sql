@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS endpoints (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     subdomain_id INT NOT NULL,
     url TEXT NOT NULL,
+    method TEXT DEFAULT 'GET',
     title TEXT,
     status_code INT,
     active BOOLEAN GENERATED ALWAYS AS (status_code IS NOT NULL AND status_code != 404) STORED,

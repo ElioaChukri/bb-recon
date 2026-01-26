@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 PROTOCOL_REGEX = re.compile(r"^https?://")
 
@@ -14,7 +15,6 @@ class HttpxResult:
     """
 
     url: str
-    host: str
     port: int
     status_code: int
     content_length: int
@@ -35,7 +35,6 @@ class HttpxResult:
         data: dict = json.loads(line)
         return cls(
             url=data["url"],
-            host=PROTOCOL_REGEX.sub("", data["url"]),
             port=data["port"],
             status_code=data["status_code"],
             content_length=data["content_length"],
@@ -43,6 +42,17 @@ class HttpxResult:
             title=data.get("title", ""),
             webserver=data.get("webserver"),
         )
+
+    @property
+    def host(self) -> str:
+        """
+        Extract the host from the URL.
+
+        :return: str: The host part of the URL.
+        """
+
+        parsed_url = urlparse(self.url)
+        return parsed_url.netloc
 
 
 def parse_httpx_output(output: str) -> list[HttpxResult]:
