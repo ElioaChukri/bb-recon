@@ -15,13 +15,13 @@ from bb_recon.utils.db_utils import (
     store_subfinder_results,
 )
 from bb_recon.utils.log_utils import setup_logging
-from bb_recon.utils.path_utils import check_if_required_commands_exist
+from bb_recon.utils.path_utils import PROJECT_ROOT, check_if_required_commands_exist
 from bb_recon.utils.subprocess_utils import log_and_run
 from bb_recon.utils.telegram_utils import TelegramBot
 
 
 def joy():
-    load_dotenv()
+    load_dotenv(PROJECT_ROOT / ".env")
     config = ReconConfig.load()
     setup_logging(config.cli.log_level)
     logger = logging.getLogger(__name__)
