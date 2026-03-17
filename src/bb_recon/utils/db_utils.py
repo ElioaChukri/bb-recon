@@ -18,7 +18,7 @@ def get_connection(db_path: Path) -> sqlite3.Connection:
     :raises sqlite3.Error: For any other SQLite-related errors.
     """
     try:
-        logging.debug(f"Connecting to SQLite database at {db_path}")
+        logger.debug(f"Connecting to SQLite database at {db_path}")
         conn = sqlite3.connect(db_path)
         return conn
     except sqlite3.OperationalError as e:
@@ -56,6 +56,45 @@ def get_domain_id(conn: sqlite3.Connection, domain: str) -> int | None:
     logger.debug(f"Domain {domain} mapped to ID {domain_id}")
     return domain_id
 
+
+def get_subdomains_by_domain(conn: sqlite3.Connection, domain: str, active: bool = True) -> list[str]:
+    """
+    Retrieve a list of subdomains by their domain.
+    :param conn: The SQLite database connection.
+    :param domain: The domain to use for lookup
+    :param active: Whether the returned subdomain should be marked as "active" or not
+    :return: A list of subdomain names.
+    """
+
+    active_param = 1 if active else 0
+
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT s.name FROM subdomains s
+        JOIN endpoints e ON e.subdomain_id = s.id 
+        JOIN domains d ON s.domain_id = d.id
+        WHERE d.name = ? AND e.active = ?;
+        """,
+        (domain, active_param),
+    )
+    rows = cursor.fetchall()
+    return [row[0] for row in rows]
+
+def get_domains(conn: sqlite3.Connection) -> list[str]:
+    """
+    Retrieve all domains present in the DB.
+    :param conn: The SQLite database connection.
+    :return: A list of all domain names
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT name FROM domains;
+        """
+    )
+    rows = cursor.fetchall()
+    return [row[0] for row in rows]
 
 def get_subdomain_id(conn: sqlite3.Connection, subdomain: str) -> int | None:
     """

@@ -26,4 +26,9 @@ def parse_args() -> argparse.Namespace:
         "--log-level",
         help="Set the logging level (CRITICAL, ERROR, WARNING, INFO, DEBUG). (default: INFO)",
     )
+    parser.add_argument(
+        "--disable-telegram-notifications",
+        action="store_true",
+        help="Disable telegram notifications.",
+    )
     return parser.parse_args()

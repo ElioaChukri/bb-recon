@@ -1,9 +1,13 @@
+import logging
+from datetime import datetime
+
 from dotenv import load_dotenv
 
 from bb_recon.config.recon_config import ReconConfig
 from bb_recon.models import parse_dnsx_output, parse_httpx_output, parse_katana_output, parse_subfinder_output
 from bb_recon.utils.db_utils import (
     get_connection,
+    get_subdomains_by_domain,
     insert_domain,
     store_dnsx_results,
     store_httpx_results,
@@ -13,12 +17,14 @@ from bb_recon.utils.db_utils import (
 from bb_recon.utils.log_utils import setup_logging
 from bb_recon.utils.path_utils import check_if_required_commands_exist
 from bb_recon.utils.subprocess_utils import log_and_run
+from bb_recon.utils.telegram_utils import TelegramBot
 
 
 def joy():
     load_dotenv()
     config = ReconConfig.load()
     setup_logging(config.cli.log_level)
+    logger = logging.getLogger(__name__)
     config.initialize_database()
     target_domain = config.cli.target_domain
 
@@ -83,6 +89,21 @@ def joy():
         httpx_stdin = "\n".join(domains_to_check_liveness)
         httpx_stdout = log_and_run(httpx_command, stdin=httpx_stdin).stdout
         httpx_results = parse_httpx_output(httpx_stdout)
+
+        if config.cli.send_telegram_notification:
+            logger.debug("Telegram notifications enabled")
+            live_hosts = [r.host for r in httpx_results if r.status_code != 404]
+            logger.debug("Live hosts: %s", live_hosts)
+            stored_hosts = get_subdomains_by_domain(conn, target_domain, active=True)
+            logger.debug("Stored hosts: %s", stored_hosts)
+            new_hosts = sorted(set(live_hosts) - set(stored_hosts))
+            logger.debug("New hosts: %s", new_hosts)
+
+            now = datetime.now()
+            message = f"New subdomains discovered on {now}:\n\n" + "\n".join(new_hosts)
+            logger.info("Sending telegram notification: %s", message)
+            TelegramBot().send_message(message)
+
         store_httpx_results(conn, target_domain, httpx_results)
 
         if config.cli.crawl_endpoints:

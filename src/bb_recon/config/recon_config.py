@@ -26,6 +26,7 @@ class CliArgs(BaseModel):
     crawl_endpoints: bool = False
     app_data_dir: Path = DEFAULT_DATA_DIR
     log_level: LogLevel = "INFO"
+    send_telegram_notification: bool = True
 
     @field_validator("app_data_dir", mode="before")
     @classmethod
@@ -54,6 +55,7 @@ class CliArgs(BaseModel):
             "crawl_endpoints": args.crawl_endpoints,
             "app_data_dir": args.app_data_dir,
             "log_level": args.log_level,
+            "send_telegram_notification": not args.disable_telegram_notifications,
         }
         return cls(**{k: v for k, v in kwargs.items() if v is not None})
 
@@ -75,14 +77,6 @@ class EnvConfig(BaseSettings):
     telegram_chat_id: str = Field(
         ...,
         description="Telegram chat ID for sending notifications.",
-    )
-    github_api_token: str = Field(
-        ...,
-        description="GitHub API token to send authenticated requests.",
-    )
-    shodan_api_key: str = Field(
-        ...,
-        description="Shodan API key for accessing Shodan services.",
     )
 
 
