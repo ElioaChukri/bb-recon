@@ -1,0 +1,26 @@
+repos:
+  # Ruff for linting & formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        language_version: python3
+      - id: ruff-format
+        language_version: python3
+
+  # Basic pre-commit housekeeping hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: check-shebang-scripts-are-executable
+
+  # SQL linting & formatting with SQLFluff
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 4.1.0
+    hooks:
+      - id: sqlfluff-fix
+        args: ["--dialect", "sqlite", "db_schema/"]

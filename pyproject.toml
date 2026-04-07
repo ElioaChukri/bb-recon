@@ -13,7 +13,6 @@ dependencies = [
 ]
 
 [tool.ruff]
-target-version = "py312"
 line-length = 120
 
 # Linting rules
@@ -30,10 +29,6 @@ select = [
     "ARG",  # Flags unused function arguments
     "RUF022" # Unsorted __all__ blocks
 ]
-ignore = [
-    "E501", # line length handled by formatter
-]
-per-file-ignores = {"**/tests/**/*" = ["D", "S101", "S104", "ARG"]}
 
 [build-system]
 requires = ["hatchling"]
@@ -49,4 +44,3 @@ recon = "bb_recon.cli:joy"
 dev = [
     "ruff>=0.14.13",
 ]
-
